@@ -1,3 +1,5 @@
+HTML
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -50,4 +52,331 @@
         
         /* Palmares a Fisarmonica (Accordion) */
         .accordion-item { background-color: #1e293b; border-radius: 8px; margin-bottom: 8px; border: 1px solid #334155; overflow: hidden; }
-        .accordion-header { padding: 12px; font-size: 13px; font-weight: 600; color: #
+        .accordion-header { padding: 12px; font-size: 13px; font-weight: 600; color: #f8fafc; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background-color: #1e293b; }
+        .accordion-header:active { background-color: #243249; }
+        .accordion-content { display: none; padding: 10px 12px; background-color: #0f172a; border-top: 1px solid #334155; font-size: 13px; color: #94a3b8; }
+        .accordion-content div { padding: 4px 0; border-bottom: 1px solid #1e293b; }
+        .accordion-content div:last-child { border-bottom: none; }
+        
+        /* Barra di Navigazione fissa */
+        .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 65px; background-color: #0f172a; border-top: 1px solid #334155; display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #94a3b8; text-decoration: none; font-size: 11px; width: 100%; height: 100%; justify-content: center; cursor: pointer; }
+        .nav-item.active { color: #38bdf8; background-color: rgba(56, 189, 248, 0.05); }
+        .nav-icon { font-size: 18px; margin-bottom: 2px; }
+        
+        .loading { text-align: center; color: #94a3b8; padding: 40px 0; font-style: italic; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>LEGA SERIE FRA</h1>
+        <p>Stagione Ufficiale Fantacalcio</p>
+    </header>
+
+    <div class="container">
+        
+        <div id="page-societa" class="page active">
+            <h2 class="section-title">Società Partecipanti</h2>
+            <div id="loading-societa" class="loading">Caricamento società da Google Sheets...</div>
+            <div class="squadre-grid" id="squadre-container"></div>
+        </div>
+
+        <div id="page-dettaglio" class="page">
+            <button class="btn-back" onclick="mostraPagina('societa')">← Torna alle Società</button>
+            <h2 id="dettaglio-titolo" style="font-size: 20px; color: #38bdf8; margin-bottom: 5px;">Nome Squadra</h2>
+            <p id="dettaglio-presidente" style="font-size: 13px; color: #94a3b8; margin-bottom: 15px;">Presidente: Nome</p>
+            
+            <div id="dettaglio-info" class="info-box"></div>
+            
+            <h3 class="section-title" style="margin-top: 20px;">🛡️ Rosa Calciatori</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">Ruolo</th>
+                            <th style="width: 50%">Giocatore</th>
+                            <th style="width: 15%">Serie A</th>
+                            <th style="width: 20%">Scadenza</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rosa-table-body">
+                        </tbody>
+                </table>
+            </div>
+
+            <h3 class="section-title" style="margin-top: 25px;">🏆 Palmarès Storico</h3>
+            <div id="palmares-container">
+                </div>
+        </div>
+
+        <div id="page-listino" class="page">
+            <h2 class="section-title">Listino Calciatori</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 20%">Ruolo</th>
+                            <th style="width: 50%">Giocatore</th>
+                            <th style="width: 30%">Serie A</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listino-table-body">
+                        <tr><td colspan="3" class="loading">Caricamento listino...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="page-simulatore" class="page">
+            <h2 class="section-title">Simulatore</h2>
+            <div class="info-box" style="border-left-color: #a855f7;">
+                <strong>In Arrivo!</strong><br>Questa schermata diventerà la calcolatrice interattiva per i Crediti e la Classifica.
+            </div>
+        </div>
+
+    </div>
+
+    <nav class="nav-bar">
+        <div class="nav-item active" id="btn-nav-societa" onclick="mostraPagina('societa')">
+            <span class="nav-icon">🛡️</span><span>Società</span>
+        </div>
+        <div class="nav-item" id="btn-nav-listino" onclick="mostraPagina('listino')">
+            <span class="nav-icon">📊</span><span>Listino</span>
+        </div>
+        <div class="nav-item" id="btn-nav-simulatore" onclick="mostraPagina('simulatore')">
+            <span class="nav-icon">🧮</span><span>Simulatore</span>
+        </div>
+    </nav>
+
+    <script>
+        const SPREADSHEET_ID = '1qpaYVBaGix4PvwxBmycbN8J_o5bq8hoxxFRZt5YMG9A'; 
+
+        let databaseSocieta = [];
+        let databaseCalciatori = [];
+        let databaseClassifiche = [];
+
+        function ottieniBadgeRuolo(ruoloTesto) {
+            if (!ruoloTesto) return `<span class="badge-ruolo">-</span>`;
+            let r = ruoloTesto.trim();
+            let rl = r.toLowerCase();
+            
+            if (rl === 'por') return `<span class="badge-ruolo ruolo-por">${r}</span>`;
+            if (['b', 'dc', 'dd', 'ds'].includes(rl) || r.includes('Dc') || r.includes('Dd') || r.includes('Ds')) return `<span class="badge-ruolo ruolo-dif">${r}</span>`;
+            if (['e', 'm', 'c'].includes(rl) || r.includes('M') || r.includes('C')) return `<span class="badge-ruolo ruolo-cen">${r}</span>`;
+            if (['w', 't'].includes(rl) || r.includes('W') || r.includes('T')) return `<span class="badge-ruolo ruolo-tre">${r}</span>`;
+            if (['a', 'pc'].includes(rl) || r.includes('A') || r.includes('Pc')) return `<span class="badge-ruolo ruolo-att">${r}</span>`;
+            
+            return `<span class="badge-ruolo" style="background-color: #64748b">${r}</span>`;
+        }
+
+        function mostraPagina(nomePagina) {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById('page-' + nomePagina).style.display = 'block';
+            document.getElementById('btn-nav-' + nomePagina).classList.add('active');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            caricaTabellaSocieta();
+            caricaTabellaCalciatori();
+            caricaTabellaClassifiche();
+        });
+
+        // Lettura sicura da Google JSON
+        function pulisciEParseJson(data) {
+            try {
+                const jsonText = data.match(/google\.visualization\.Query\.setResponse\(([\s\S\w]+)\)/)[1];
+                return JSON.parse(jsonText);
+            } catch (e) {
+                console.error("Errore parsing google json", e);
+                return null;
+            }
+        }
+
+        function caricaTabellaSocieta() {
+            const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=SOCIETA`;
+            fetch(url).then(r => r.text()).then(data => {
+                const json = pulisciEParseJson(data);
+                if (!json) return;
+                const rows = json.table.rows;
+                
+                document.getElementById('loading-societa').style.display = 'none';
+                const container = document.getElementById('squadre-container');
+                container.innerHTML = '';
+
+                rows.forEach(row => {
+                    if (!row.c || row.c.length < 2) return;
+                    
+                    const nome = row.c[0] ? row.c[0].v : '';
+                    const pres = row.c[1] ? row.c[1].v : '';
+                    const crediti = row.c[2] ? row.c[2].v : 0;
+                    const classPos = row.c[3] ? row.c[3].v : '-';
+
+                    if(!nome || nome === "Nome Squadra") return; // Salta intestazione se presente
+
+                    databaseSocieta.push({ nome, presidente: pres, crediti, classifica: classPos });
+
+                    const card = document.createElement('div');
+                    card.className = 'squadra-card';
+                    card.onclick = () => apriDettaglioSocieta(nome, pres, crediti, classPos);
+                    card.innerHTML = `
+                        <div class="squadra-logo">🛡️</div>
+                        <div class="squadra-nome">${nome}</div>
+                        <div class="squadra-presidente">${pres}</div>
+                    `;
+                    container.appendChild(card);
+                });
+            }).catch(err => {
+                document.getElementById('loading-societa').innerText = "Errore di connessione a Google Sheets.";
+            });
+        }
+
+        function caricaTabellaCalciatori() {
+            const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=LISTINO CALCIATORI`;
+            fetch(url).then(r => r.text()).then(data => {
+                const json = pulisciEParseJson(data);
+                if (!json) return;
+                const rows = json.table.rows;
+                const listinoBody = document.getElementById('listino-table-body');
+                listinoBody.innerHTML = '';
+
+                rows.forEach(row => {
+                    if (!row.c || row.c.length < 3) return;
+
+                    const giocatore = row.c[0] ? row.c[0].v : '';
+                    const ruolo = row.c[1] ? row.c[1].v : '';
+                    const serieA = row.c[2] ? row.c[2].v : '';
+                    const sqLega = row.c[3] ? row.c[3].v : '';
+                    const presLega = row.c[4] ? row.c[4].v : '';
+                    const contratto = row.c[5] ? row.c[5].v : '';
+
+                    if(!giocatore || giocatore === "Giocatore") return;
+
+                    databaseCalciatori.push({ giocatore, ruolo, serieA, squadraLega: sqLega, presidenteLega: presLega, contratto });
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${ottieniBadgeRuolo(ruolo)}</td>
+                        <td style="font-weight:600;">${giocatore}</td>
+                        <td style="color:#94a3b8;">${serieA}</td>
+                    `;
+                    listinoBody.appendChild(tr);
+                });
+            });
+        }
+
+        function caricaTabellaClassifiche() {
+            const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=CLASSIFICHE`;
+            fetch(url).then(r => r.text()).then(data => {
+                const json = pulisciEParseJson(data);
+                if (!json) return;
+                const rows = json.table.rows;
+                
+                rows.forEach(row => {
+                    if (!row.c || row.c.length < 5) return;
+                    
+                    const stagione = row.c[1] ? row.c[1].v : '';
+                    const tipo = row.c[2] ? row.c[2].v : '';
+                    const posizione = row.c[3] ? row.c[3].v : '';
+                    const presidente = row.c[4] ? row.c[4].v : '';
+
+                    if(presidente && presidente !== "ID Presidente") {
+                        databaseClassifiche.push({ ColumnsStagione: totaleClassifiche(stagione), stagione, tipo, posizione, presidente });
+                    }
+                });
+            });
+        }
+
+        function totaleClassifiche(stg) {
+            if(!stg) return "";
+            return stg.toString();
+        }
+
+        function apriDettaglioSocieta(nomeSquadra, nomePresidente, crediti, classPos) {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.getElementById('page-dettaglio').style.display = 'block';
+
+            document.getElementById('dettaglio-titolo').innerText = nomeSquadra;
+            document.getElementById('dettaglio-presidente').innerText = `Presidente: ${nomePresidente}`;
+            document.getElementById('dettaglio-info').innerHTML = `💰 <strong>Crediti:</strong> ${crediti} cr &nbsp;|&nbsp; 📊 <strong>Posizione:</strong> ${classPos}`;
+
+            // Filtro rosa protetto
+            const rosaBody = document.getElementById('rosa-table-body');
+            rosaBody.innerHTML = '';
+            
+            const rosaFiltrata = databaseCalciatori.filter(c => c.squadraLega && c.squadraLega.toString().toLowerCase().trim() === nomeSquadra.toString().toLowerCase().trim());
+            
+            if(rosaFiltrata.length === 0) {
+                rosaBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Nessun giocatore assegnato in Excel</td></tr>`;
+            } else {
+                rosaFiltrata.forEach(c => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${ottieniBadgeRuolo(c.ruolo)}</td>
+                        <td style="font-weight:600;">${c.giocatore}</td>
+                        <td style="color:#94a3b8;">${c.serieA}</td>
+                        <td style="color:#38bdf8; font-weight:500;">${c.contratto || '-'}</td>
+                    `;
+                    rosaBody.appendChild(tr);
+                });
+            }
+
+            // Palmares protetto
+            const palmaresContainer = document.getElementById('palmares-container');
+            palmaresContainer.innerHTML = '';
+
+            const storicoPresidente = databaseClassifiche.filter(h => h.presidente && h.presidente.toString().toLowerCase().trim() === nomePresidente.toString().toLowerCase().trim());
+
+            const categorieTrofei = {
+                "CAMPIONATO": storicoPresidente.filter(h => h.tipo && h.tipo.toString().toLowerCase() === 'finale' && h.posizione && h.posizione.toString() === '1'),
+                "COPPA": storicoPresidente.filter(h => h.tipo && h.tipo.toString().toLowerCase() === 'coppa' && h.posizione && h.posizione.toString().toLowerCase() === 'vincitore'),
+                "SUPERCOPPA": storicoPresidente.filter(h => h.tipo && h.tipo.toString().toLowerCase() === 'supercoppa' && h.posizione && h.posizione.toString().toLowerCase() === 'vincitore'),
+                "2° POSTO": storicoPresidente.filter(h => h.tipo && h.tipo.toString().toLowerCase() === 'finale' && h.posizione && h.posizione.toString() === '2'),
+                "3° POSTO": storicoPresidente.filter(h => h.tipo && h.tipo.toString().toLowerCase() === 'finale' && h.posizione && h.posizione.toString() === '3'),
+                "FINALISTA COPPA": storicoPresidente.filter(h => h.tipo && h.tipo.toString().toLowerCase() === 'coppa' && h.posizione && h.posizione.toString().toLowerCase() === 'finalista'),
+                "FINALISTA SUPERCOPPA": storicoPresidente.filter(h => h.tipo && h.tipo.toString().toLowerCase() === 'supercoppa' && h.posizione && h.posizione.toString().toLowerCase() === 'finalista')
+            };
+
+            let trofeiTrovati = false;
+
+            for (const [titolo, record] of Object.entries(categorieTrofei)) {
+                if (record.length > 0) {
+                    trofeiTrovati = true;
+                    const item = document.createElement('div');
+                    item.className = 'accordion-item';
+                    
+                    item.innerHTML = `
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span>${titolo} (${record.length})</span>
+                            <span class="freccia">▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            ${record.map(r => `<div>Stagione ${r.stagione}</div>`).join('')}
+                        </div>
+                    `;
+                    palmaresContainer.appendChild(item);
+                }
+            }
+
+            if (!trofeiTrovati) {
+                palmaresContainer.innerHTML = `<p style="font-size:13px; color:#94a3b8; font-style:italic;">Nessun trofeo nel palmarès</p>`;
+            }
+        }
+
+        function toggleAccordion(elementoHeader) {
+            const content = elementoHeader.nextElementSibling;
+            const freccia = elementoHeader.querySelector('.freccia');
+            
+            if (content.style.display === "block") {
+                content.style.display = "none";
+                freccia.innerText = "▼";
+            } else {
+                content.style.display = "block";
+                freccia.innerText = "▲";
+            }
+        }
+    </script>
+</body>
+</html>
