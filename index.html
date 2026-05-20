@@ -7,6 +7,11 @@ HTML
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lega Serie Fra</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Serie Fra">
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { background-color: #121824; color: #ffffff; padding-bottom: 80px; }
@@ -42,14 +47,25 @@ HTML
         td { padding: 10px; border-bottom: 1px solid #334155; color: #f8fafc; vertical-align: middle; }
         tr:last-child td { border-bottom: none; }
         
-        /* Badge Ruoli Colorati richiesti */
+        /* -------------------------------------------------------------------------
+           GUIDA AI COLORI DEI RUOLI: Puoi cambiare i codici colore (#...) come vuoi
+           ------------------------------------------------------------------------- */
         .badge-ruolo { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #ffffff; text-transform: uppercase; text-align: center; min-width: 32px; }
-        .ruolo-por { background-color: #f97316; } /* Arancione */
-        .ruolo-dif { background-color: #22c55e; } /* Verde (B, Dc, Dd, Ds) */
-        .ruolo-cen { background-color: #3b82f6; } /* Blu (E, M, C) */
-        .ruolo-tre { background-color: #a855f7; } /* Viola (W, T) */
-        .ruolo-att { background-color: #ef4444; } /* Rosso (A, Pc) */
+        .ruolo-por { background-color: #f97316; } /* Arancione per POR */
+        .ruolo-dif { background-color: #22c55e; } /* Verde per B, Dc, Dd, Ds */
+        .ruolo-cen { background-color: #3b82f6; } /* Blu per E, M, C */
+        .ruolo-tre { background-color: #a855f7; } /* Viola per W, T */
+        .ruolo-att { background-color: #ef4444; } /* Rosso per A, Pc */
         
+        /* -------------------------------------------------------------------------
+           GUIDA AI COLORI DEI CONTRATTI (Quelli che hai chiesto adesso!)
+           Se in futuro vuoi cambiarli, modifica la parola dopo "color:" qui sotto
+           ------------------------------------------------------------------------- */
+        .contratto-2026 { color: #ef4444 !important; font-weight: bold; } /* ROSSO */
+        .contratto-2027 { color: #eab308 !important; font-weight: bold; } /* GIALLO */
+        .contratto-2028 { color: #22c55e !important; font-weight: bold; } /* VERDE */
+        .contratto-default { color: #38bdf8; }                             /* Azzurro per gli altri (es. P-2028) */
+
         /* Palmares a Fisarmonica (Accordion) */
         .accordion-item { background-color: #1e293b; border-radius: 8px; margin-bottom: 8px; border: 1px solid #334155; overflow: hidden; }
         .accordion-header { padding: 12px; font-size: 13px; font-weight: 600; color: #f8fafc; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background-color: #1e293b; }
@@ -156,6 +172,16 @@ HTML
         let databaseCalciatori = [];
         let databaseClassifiche = [];
 
+        // Funzione per colorare i contratti in base all'anno (2026, 2027, 2028)
+        function ottieniClasseContratto(annoTesto) {
+            if (!annoTesto) return 'contratto-default';
+            let a = annoTesto.toString().trim();
+            if (a === '2026') return 'contratto-2026';
+            if (a === '2027') return 'contratto-2027';
+            if (a === '2028') return 'contratto-2028';
+            return 'contratto-default'; // Rimane azzurro se ha formati diversi come "P - 2028"
+        }
+
         function ottieniBadgeRuolo(ruoloTesto) {
             if (!ruoloTesto) return `<span class="badge-ruolo">-</span>`;
             let r = ruoloTesto.trim();
@@ -184,7 +210,6 @@ HTML
             caricaTabellaClassifiche();
         });
 
-        // Lettura sicura da Google JSON
         function pulisciEParseJson(data) {
             try {
                 const jsonText = data.match(/google\.visualization\.Query\.setResponse\(([\s\S\w]+)\)/)[1];
@@ -214,7 +239,7 @@ HTML
                     const crediti = row.c[2] ? row.c[2].v : 0;
                     const classPos = row.c[3] ? row.c[3].v : '-';
 
-                    if(!nome || nome === "Nome Squadra") return; // Salta intestazione se presente
+                    if(!nome || nome === "Nome Squadra") return;
 
                     databaseSocieta.push({ nome, presidente: pres, crediti, classifica: classPos });
 
@@ -283,15 +308,10 @@ HTML
                     const presidente = row.c[4] ? row.c[4].v : '';
 
                     if(presidente && presidente !== "ID Presidente") {
-                        databaseClassifiche.push({ ColumnsStagione: totaleClassifiche(stagione), stagione, tipo, posizione, presidente });
+                        databaseClassifiche.push({ stagione, tipo, posizione, presidente });
                     }
                 });
             });
-        }
-
-        function totaleClassifiche(stg) {
-            if(!stg) return "";
-            return stg.toString();
         }
 
         function apriDettaglioSocieta(nomeSquadra, nomePresidente, crediti, classPos) {
@@ -302,7 +322,6 @@ HTML
             document.getElementById('dettaglio-presidente').innerText = `Presidente: ${nomePresidente}`;
             document.getElementById('dettaglio-info').innerHTML = `💰 <strong>Crediti:</strong> ${crediti} cr &nbsp;|&nbsp; 📊 <strong>Posizione:</strong> ${classPos}`;
 
-            // Filtro rosa protetto
             const rosaBody = document.getElementById('rosa-table-body');
             rosaBody.innerHTML = '';
             
@@ -313,17 +332,18 @@ HTML
             } else {
                 rosaFiltrata.forEach(c => {
                     const tr = document.createElement('tr');
+                    // Applica la classe colore al contratto
+                    const classeContratto = ottieniClasseContratto(c.contratto);
                     tr.innerHTML = `
                         <td>${ottieniBadgeRuolo(c.ruolo)}</td>
                         <td style="font-weight:600;">${c.giocatore}</td>
                         <td style="color:#94a3b8;">${c.serieA}</td>
-                        <td style="color:#38bdf8; font-weight:500;">${c.contratto || '-'}</td>
+                        <td class="${classeContratto}">${c.contratto || '-'}</td>
                     `;
                     rosaBody.appendChild(tr);
                 });
             }
 
-            // Palmares protetto
             const palmaresContainer = document.getElementById('palmares-container');
             palmaresContainer.innerHTML = '';
 
